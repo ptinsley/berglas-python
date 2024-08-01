@@ -1,6 +1,7 @@
 import base64
 import logging
 import os
+from typing import Optional, Tuple
 
 from cryptography.hazmat.backends import default_backend
 from google.cloud import storage, kms_v1
@@ -10,19 +11,19 @@ from cryptography.hazmat.primitives.ciphers import (
     Cipher, algorithms, modes
 )
 
-BERGLAS_PREFIX           = "berglas://"
-METADATA_KMS_KEY         = "berglas-kms-key"
-METADATA_ID_KEY          = "berglas-secret"
-METADATA_CONTENT_TYPE    = "text/plain; charset=utf-8"
-METADATA_CACHE_CONTROL   = "private, no-cache, no-store, no-transform, max-age=0"
-BLOB_CHUNK_SIZE          = 256 * 1024
-GCM_NONCE_SIZE           = 12
-GCM_TAG_SIZE             = 16
-DATA_ENCRYPTION_KEY_SIZE = 32
+BERGLAS_PREFIX: str = "berglas://"
+METADATA_KMS_KEY: str = "berglas-kms-key"
+METADATA_ID_KEY: str = "berglas-secret"
+METADATA_CONTENT_TYPE: str = "text/plain; charset=utf-8"
+METADATA_CACHE_CONTROL: str = "private, no-cache, no-store, no-transform, max-age=0"
+BLOB_CHUNK_SIZE: int = 256 * 1024
+GCM_NONCE_SIZE: int = 12
+GCM_TAG_SIZE: int = 16
+DATA_ENCRYPTION_KEY_SIZE: int = 32
 
-LOCATION                 = "global"
-KEY_RING                 = "berglas"
-CRYPTO_KEY               = "berglas-key"
+LOCATION: str = "global"
+KEY_RING: str = "berglas"
+CRYPTO_KEY: str = "berglas-key"
 
 
 def str2b(s: str) -> bytes:
@@ -112,7 +113,7 @@ def Replace(project_id: str, env_var_key: str):
     os.environ[env_var_key] = plaintext
 
 
-def _get_bucket_object(env_var_value: str) -> (str, str):
+def _get_bucket_object(env_var_value: str) -> Tuple[str, str]:
     """
     Split the env_var_value into bucket and object name
 
@@ -163,7 +164,9 @@ def _envelope_decrypt(data_encryption_key: str, data: str) -> str:
     return b2str(decrypter.update(ciphertext))
 
 
-def _envelope_encrypt(plaintext: bytes) -> (bytes, bytes):
+from typing import Tuple
+
+def _envelope_encrypt(plaintext: bytes) -> Tuple[bytes, bytes]:
     """
     Generates a unique Data Encryption Key and encrypts the plaintext with the given key.
 
@@ -216,9 +219,12 @@ def Resolve(project_id: str, env_var_value: str) -> str:
 
     _validate_env_var_prefix(env_var_value)
 
-    _validate_project_id(project_id)
+    # _validate_project_id(project_id)
 
-    gcs_client = storage.Client(project=project_id)
+    if project_id is None:
+        gcs_client = storage.Client()
+    else:
+        gcs_client = storage.Client(project=project_id)
     kms_client = kms_v1.KeyManagementServiceClient()
 
     bucket, object_name = _get_bucket_object(env_var_value)
@@ -230,9 +236,9 @@ def Resolve(project_id: str, env_var_value: str) -> str:
     # Get the blob ciphered content
     blob_content = b2str(blob.download_as_string())
 
-    blob_content_splited = blob_content.split(":", 2)
-    decoded_data_encryption_key  = base64.b64decode(blob_content_splited[0])
-    decoded_data                 = base64.b64decode(blob_content_splited[1])
+    blob_content_split = blob_content.split(":", 2)
+    decoded_data_encryption_key  = base64.b64decode(blob_content_split[0])
+    decoded_data                 = base64.b64decode(blob_content_split[1])
 
     # Decrypt the encoded Data Encryption Key (DEK)
     # Initialize request argument(s)
@@ -249,7 +255,7 @@ def Resolve(project_id: str, env_var_value: str) -> str:
 
 
 def Encrypt(project_id: str, env_var_value: str, plaintext: str,
-            location: str = LOCATION, key_ring: str = KEY_RING, crypto_key: str = CRYPTO_KEY):
+            location: str = LOCATION, key_ring: str = KEY_RING, crypto_key: str = CRYPTO_KEY) -> None:
     """
     Get the plain text string [plaintext], encrypt it and store it into the bucket [env_var_value]
 
@@ -265,12 +271,10 @@ def Encrypt(project_id: str, env_var_value: str, plaintext: str,
 
     # It's a flag to ensure the IAM policy for the blob object will be updated only
     # if the file exists.
-    blob_iam_policy = None
+    blob_iam_policy = Optional[iam.Policy] = None
 
     _validate_env_var_prefix(env_var_value)
-
     _validate_project_id(project_id)
-
 
     bucket_name, object_name = _get_bucket_object(env_var_value)
 
@@ -281,8 +285,12 @@ def Encrypt(project_id: str, env_var_value: str, plaintext: str,
 
     crypto_key_path = kms_client.crypto_key_path_path(project_id, location, key_ring, crypto_key)
 
-    kms_resp = kms_client.encrypt(crypto_key_path, data_encryption_key,
-                                  additional_authenticated_data=str2b(object_name))
+    encrypt_request = kms_v1.EncryptRequest(
+        name=crypto_key_path,
+        plaintext=data_encryption_key,
+        additional_authenticated_data=str2b(object_name)
+    )
+    kms_resp = kms_client.encrypt(request=encrypt_request)
 
     bucket = gcs_client.get_bucket(bucket_name)
 

@@ -1,6 +1,6 @@
 import os
 
-import berglas_python as berglas
+import berglas as berglas
 
 project_id = os.environ.get("MY-PROJECT")
 

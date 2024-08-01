@@ -1,0 +1,16 @@
+[tool.poetry]
+name = "berglas"
+version = "1.0"
+description = "A python module to use Berglas, forked from the abandoned berglas-python project"
+authors = ["Paul Tinsley <paul.tinsley@gmail.com>", "Guillaume Blaquiere <guillaume.blaquiere@gmail.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+google-cloud-kms = "^2.24.2"
+google-cloud-storage = "^2.18.0"
+cryptography = "^43.0.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

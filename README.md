@@ -8,7 +8,7 @@ See [Berglas](https://github.com/GoogleCloudPlatform/berglas) for details about 
 
 You have to get the library
 ```
-pip install berglas-python
+pip install berglas
 ```
 
 Then use it in the same way as [Go library](https://github.com/GoogleCloudPlatform/berglas/blob/master/README.md#library-usage)
@@ -23,7 +23,7 @@ Here an example of usage
 ```
 import os
 
-import berglas_python as berglas
+import berglas
 
 project_id = os.environ.get("MY-PROJECT")
 

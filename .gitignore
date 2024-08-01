@@ -3,3 +3,6 @@
 /dist/
 /build/
 /berglas_python.egg-info/
+.direnv
+__pycache__/
+test.py
